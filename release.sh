@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
-# release.sh — build, publish, sign and promote Kragnetic images in one step.
+# release.sh — build, publish and sign Kragnetic images in one step.
 #
 # For each variant (default, nvidia):
 #   1. skip when the upstream base digest is unchanged (unless --force)
 #   2. build with `dcli-bootc update --no-switch --no-import` (unless --no-build)
-#   3. push the image to a dated tag (:YYYY-MM-DD)
+#   3. push straight to the variant tag (:default / :nvidia)
 #   4. sign that digest with cosign
-#   5. verify the dated tag
-#   6. promote the same digest to the mutable tag (:default / :nvidia)
-#   7. verify the mutable tag
+#   5. verify the tag
 #
-# Signatures are bound to the image digest, so the mutable tag only ever moves
-# to an image that is already signed. If signing fails, users keep pulling the
-# previous signed image.
+# Each release overwrites the tag. Sign immediately after pushing: until the
+# signature lands, an install pulling that tag will refuse it.
 #
 # Usage:
 #   ./release.sh                 # both variants, skip unchanged bases
@@ -28,7 +25,6 @@
 #   COSIGN_PUB       public key            (~/cosign/cosign.pub)
 #   COSIGN_ENV       root-only env file    (/etc/kragnetic/release.env)
 #   COSIGN_PASSWORD  key password          (otherwise read from COSIGN_ENV)
-#   DATED_TAG        override dated tag    ($(date +%Y-%m-%d))
 #   RELEASE_CACHE=1  let dcli-bootc reuse the podman layer cache
 
 set -euo pipefail
@@ -40,7 +36,6 @@ COSIGN_KEY="${COSIGN_KEY:-$HOME/cosign/cosign.key}"
 COSIGN_PUB="${COSIGN_PUB:-$HOME/cosign/cosign.pub}"
 COSIGN_ENV="${COSIGN_ENV:-/etc/kragnetic/release.env}"
 STATE_DIR="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/kragnetic/release}"
-DATED_TAG="${DATED_TAG:-$(date +%Y-%m-%d)}"
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
@@ -154,28 +149,20 @@ release_variant() {
     || die "$LOCAL_IMAGE:$tag is missing — build it first"
   local_digest="$(sudo podman image inspect "$LOCAL_IMAGE:$tag" --format '{{.Digest}}')"
 
-  info "$v: pushing $REPO:$DATED_TAG"
+  info "$v: pushing $REPO:$tag"
   sudo skopeo copy --authfile "$ROOT_AUTHFILE" --all \
     "containers-storage:$LOCAL_IMAGE:$tag" \
-    "docker://$REPO:$DATED_TAG"
+    "docker://$REPO:$tag"
 
   reg_digest="$(sudo skopeo inspect --authfile "$ROOT_AUTHFILE" --format '{{.Digest}}' \
-    "docker://$REPO:$DATED_TAG")"
+    "docker://$REPO:$tag")"
   [[ "$reg_digest" == "$local_digest" ]] \
     || die "registry digest $reg_digest does not match local $local_digest"
 
   info "$v: signing $REPO@$reg_digest"
   cosign sign --key "$COSIGN_KEY" --yes "$REPO@$reg_digest"
 
-  info "$v: verifying dated tag $REPO:$DATED_TAG"
-  cosign verify --key "$COSIGN_PUB" "$REPO:$DATED_TAG" >/dev/null
-
-  info "$v: promoting $DATED_TAG -> $tag"
-  sudo skopeo copy --authfile "$ROOT_AUTHFILE" --all \
-    "docker://$REPO:$DATED_TAG" \
-    "docker://$REPO:$tag"
-
-  info "$v: verifying promoted tag $REPO:$tag"
+  info "$v: verifying $REPO:$tag"
   cosign verify --key "$COSIGN_PUB" "$REPO:$tag" >/dev/null
 
   printf '%s\n' "$cur" > "$(state_file "$v")"
