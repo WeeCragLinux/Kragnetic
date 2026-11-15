@@ -15,28 +15,41 @@ published, so its ISO will not install.
 
 ## One-click release (`release.sh`)
 
-For the normal case — rebuild when Bazzite moves, push and sign — use:
+For the normal case — rebuild when Bazzite or KineticWE moves, push and sign —
+use:
 
 ```bash
-./release.sh            # both variants; skips any whose base is unchanged
-./release.sh nvidia     # just one variant
-./release.sh --force    # rebuild even when the base digest is unchanged
-./release.sh --no-build # publish the local images as they are
+./release.sh                  # build, push and sign both variants
+./release.sh nvidia           # just one variant
+./release.sh --skip-unchanged # only rebuild when something actually changed
+./release.sh --force          # with --skip-unchanged: build regardless
+./release.sh --no-build       # publish the local images as they are
 ```
 
 Per variant it runs:
 
-1. compare the upstream base digest (`bazzite:stable` /
-   `bazzite-nvidia-open:stable`) with `~/.local/state/kragnetic/release/<variant>.base-digest`
-2. `dcli-bootc update --no-switch --no-import`
-3. push straight to the variant tag (`:default` / `:nvidia`), overwriting it
-4. `cosign sign` **by digest**
-5. `cosign verify` the tag
+1. `dcli-bootc update --no-switch --no-import`
+2. push straight to the variant tag (`:default` / `:nvidia`), overwriting it
+3. `cosign sign` **by digest**
+4. `cosign verify` the tag
+
+Every run rebuilds by default, which is what picks up KineticWE changes: those
+packages come from the `theblackdon/kwee` COPR at build time and the Bazzite
+base digest does not move when they are updated.
+
+With `--skip-unchanged`, a fingerprint is compared against
+`~/.local/state/kragnetic/release/<variant>.fingerprint` before building:
+
+- upstream base digest (`bazzite:stable` / `bazzite-nvidia-open:stable`)
+- latest **successful** build in the KineticWE COPR (read from the COPR API)
+- git `HEAD` plus a hash of the working-tree status
+
+If any of those changed, it builds. If the COPR API can't be queried, the
+script treats the state as changed so an update is never missed.
 
 Each release replaces the tag in place. The script pushes and signs back to
 back; until the signature lands, an install pulling that tag will refuse it, so
-avoid doing the steps by hand with a long gap between them. `--force` is the
-only way to republish an unchanged base.
+avoid doing the steps by hand with a long gap between them.
 
 ### Key password for unattended runs
 
@@ -51,11 +64,12 @@ sudo chmod 600 /etc/kragnetic/release.env
 
 Alternatively export `COSIGN_PASSWORD` in the environment when invoking the
 script. The script preflights the toolchain, keypair, and root's GHCR login,
-and aborts before changing anything if a check fails.
+and aborts before changing anything if a check fails. It warns if the env file
+is not mode 600.
 
 Useful overrides: `REPO`, `LOCAL_IMAGE`, `ROOT_AUTHFILE`, `COSIGN_KEY`,
-`COSIGN_PUB`, `COSIGN_ENV`, and `RELEASE_CACHE=1` to reuse the podman layer
-cache.
+`COSIGN_PUB`, `COSIGN_ENV`, `KINETICWE_COPR`, and `RELEASE_CACHE=1` to reuse
+the podman layer cache (avoid it when you want fresh COPR packages).
 
 ## 1. One-time setup
 
