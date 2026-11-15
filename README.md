@@ -2,6 +2,47 @@
 
 A minimal Fedora-based bootc image featuring the KineticWE tiling Wayland compositor.
 
+## Install
+
+Images are published to GHCR and signed with cosign. There is only one image
+per variant — the signature is attached to the published digest — so you can
+verify before switching.
+
+Use `:default` for AMD/Intel and `:nvidia` for NVIDIA (Turing / RTX 20xx and
+newer). On an existing bootc system (Bazzite, Fedora Atomic, Silverblue, …):
+
+```bash
+# 1. Fetch the public key
+curl -fsSLO https://raw.githubusercontent.com/WeeCragLinux/Kragnetic/main/files/etc/pki/containers/weecraglinux.pub
+
+# 2. Prove the image is signed by that key
+cosign verify --key weecraglinux.pub ghcr.io/weecraglinux/kragnetic:default
+
+# 3. Switch and reboot
+sudo bootc switch ghcr.io/weecraglinux/kragnetic:default
+sudo systemctl reboot
+```
+
+After rebooting:
+
+```bash
+bootc status
+# origin: ostree-image-signed:docker://ghcr.io/weecraglinux/kragnetic:default
+```
+
+The image ships the signing policy and public key, so every later
+`bootc upgrade` is verified automatically — unsigned or tampered images are
+refused.
+
+Verify the **first** switch manually with `cosign verify` (step 2), because a
+non-Kragnetic host has no policy for this namespace yet. To have the installer
+enforce the signature during install, use the ISO instead:
+
+```
+https://dl.theblackdon.dev/kragnetic.iso
+https://dl.theblackdon.dev/kragnetic-nvidia.iso
+```
+
 ## Base
 
 - **Image**: Bazzite (Fedora Atomic)
