@@ -206,7 +206,7 @@ release_variant() {
 
   sudo podman image exists "$LOCAL_IMAGE:$tag" \
     || die "$LOCAL_IMAGE:$tag is missing — build it first"
-  local_id="$(sudo podman image inspect "$LOCAL_IMAGE:$tag" --format '{{.Id}}')"
+  local_id="sha256:$(sudo podman image inspect "$LOCAL_IMAGE:$tag" --format '{{.Id}}' | sed 's/^sha256://')"
   printf '   image id:    %s\n' "$local_id"
 
   info "$v: pushing $REPO:$tag"
@@ -232,10 +232,13 @@ release_variant() {
         "docker://$REPO@$child" | jq -r '.config.digest // empty')"
     fi
   fi
-  if [[ -n "$reg_config" && "$reg_config" != "$local_id" ]]; then
-    die "registry config $reg_config does not match local image id $local_id"
+  if [[ -n "$reg_config" ]]; then
+    reg_config="sha256:${reg_config#sha256:}"
+    [[ "$reg_config" == "$local_id" ]] \
+      || die "registry config $reg_config does not match local image id $local_id"
+  else
+    printf '   warning: could not compare config digests\n' >&2
   fi
-  [[ -n "$reg_config" ]] || printf '   warning: could not compare config digests\n' >&2
 
   info "$v: signing $REPO@$reg_digest"
   cosign sign --key "$COSIGN_KEY" --yes "$REPO@$reg_digest"
