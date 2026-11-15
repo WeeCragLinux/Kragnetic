@@ -1,6 +1,22 @@
-# Build output
+# dcli-bootc generated files
+Containerfile
+build.sh
+build_files/
+
+# Local RPMs and AppImages
+*.rpm
+*.AppImage
+*.appimage
+
+# Build artifacts
+*.tar
+*.tar.gz
+*.tar.xz
 output/
 *.iso
+
+# Machine-specific overlay snapshot
+modules/overlay-packages.yaml
 
 # Editor swap files
 *.swp
