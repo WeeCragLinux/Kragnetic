@@ -195,7 +195,7 @@ release_variant() {
   if ((NO_BUILD == 0)); then
     local args=(update --no-switch --no-import)
     [[ "$v" == "nvidia" ]] && args+=(--nvidia)
-    ((RELEASE_CACHE == 1)) && args+=(--cache)
+    (( ${RELEASE_CACHE:-0} == 1 )) && args+=(--cache)
 
     info "$v: building (dcli-bootc ${args[*]})"
     dcli-bootc "${args[@]}"
