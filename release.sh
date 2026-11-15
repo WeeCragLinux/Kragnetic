@@ -206,7 +206,10 @@ release_variant() {
 
   sudo podman image exists "$LOCAL_IMAGE:$tag" \
     || die "$LOCAL_IMAGE:$tag is missing — build it first"
-  local_digest="$(sudo podman image inspect "$LOCAL_IMAGE:$tag" --format '{{.Digest}}')"
+  # Use skopeo on both sides: podman's .Digest can report a different
+  # manifest/index digest than the one the registry ends up serving.
+  local_digest="$(sudo skopeo inspect --format '{{.Digest}}' \
+    "containers-storage:$LOCAL_IMAGE:$tag")"
 
   info "$v: pushing $REPO:$tag"
   sudo skopeo copy --authfile "$ROOT_AUTHFILE" --all \
