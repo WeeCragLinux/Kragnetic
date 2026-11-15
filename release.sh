@@ -90,6 +90,17 @@ base_digest() {
 
 state_file() { printf '%s/%s.fingerprint\n' "$STATE_DIR" "$1"; }
 
+# cosign v3+ writes the new Sigstore bundle format attached via OCI referrers.
+# The deprecated flags below force the legacy sha256-<digest>.sig attachment
+# that containers/image (bootc/podman/skopeo) can actually verify.
+cosign_needs_legacy_flags() {
+  local major
+  major="$(cosign version 2>/dev/null \
+    | awk -F': *' '/GitVersion/{print $2}' \
+    | sed 's/^v//' | cut -d. -f1)"
+  [[ "$major" =~ ^[0-9]+$ ]] && ((major >= 3))
+}
+
 # Latest successful build in the KineticWE COPR, as "<build-id>-<version>".
 # Empty output means the API could not be queried; callers treat that as
 # "changed" so a network failure never hides an update.
@@ -241,7 +252,21 @@ release_variant() {
   fi
 
   info "$v: signing $REPO@$reg_digest"
-  cosign sign --key "$COSIGN_KEY" --yes "$REPO@$reg_digest"
+  local sign_args=(sign --key "$COSIGN_KEY" --yes)
+  if cosign_needs_legacy_flags; then
+    # cosign v3 defaults to the Sigstore bundle format attached via OCI
+    # referrers. containers/image (bootc, podman, skopeo) only reads the legacy
+    # sha256-<digest>.sig tag, so force the old format.
+    sign_args+=(--tlog-upload=false --new-bundle-format=false --use-signing-config=false)
+  fi
+  cosign "${sign_args[@]}" "$REPO@$reg_digest"
+
+  # Fail loudly if the legacy attachment did not land: a tag pointing at an
+  # image bootc cannot verify is worse than no release.
+  local sig_tag="sha256-${reg_digest#sha256:}.sig"
+  sudo skopeo list-tags --authfile "$ROOT_AUTHFILE" "docker://$REPO" \
+    | jq -e --arg t "$sig_tag" '.Tags | index($t)' >/dev/null \
+    || die "legacy signature tag $sig_tag is missing after signing"
 
   info "$v: verifying $REPO:$tag"
   cosign verify --key "$COSIGN_PUB" "$REPO:$tag" >/dev/null

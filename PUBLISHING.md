@@ -30,7 +30,7 @@ Per variant it runs:
 
 1. `dcli-bootc update --no-switch --no-import`
 2. push straight to the variant tag (`:default` / `:nvidia`), overwriting it
-3. `cosign sign` **by digest**
+3. `cosign sign` **by digest**, in the legacy `.sig` format bootc verifies
 4. `cosign verify` the tag
 
 Every run rebuilds by default, which is what picks up KineticWE changes: those
@@ -145,12 +145,27 @@ skopeo inspect docker://ghcr.io/weecraglinux/kragnetic:default | jq '{Digest,Lab
 **Sign after every push.** A signature is bound to the image digest, so
 rebuilding and re-pushing a tag invalidates the previous signature.
 
+cosign v3 defaults to the Sigstore bundle format attached through the OCI
+referrers API. containers/image — and therefore bootc, podman and skopeo — only
+reads the legacy `sha256-<digest>.sig` tag, so v3 needs the deprecated flags
+below. `release.sh` adds them automatically.
+
 ```bash
-cosign sign --key ~/cosign/cosign.key --yes ghcr.io/weecraglinux/kragnetic:default
-cosign sign --key ~/cosign/cosign.key --yes ghcr.io/weecraglinux/kragnetic:nvidia
+cosign sign --key ~/cosign/cosign.key --yes \
+  --tlog-upload=false --new-bundle-format=false --use-signing-config=false \
+  ghcr.io/weecraglinux/kragnetic:default
+cosign sign --key ~/cosign/cosign.key --yes \
+  --tlog-upload=false --new-bundle-format=false --use-signing-config=false \
+  ghcr.io/weecraglinux/kragnetic:nvidia
 
 cosign verify --key ~/cosign/cosign.pub ghcr.io/weecraglinux/kragnetic:default
 cosign verify --key ~/cosign/cosign.pub ghcr.io/weecraglinux/kragnetic:nvidia
+```
+
+Confirm the legacy attachment exists — bootc cannot verify without it:
+
+```bash
+skopeo list-tags docker://ghcr.io/weecraglinux/kragnetic | grep '\.sig'
 ```
 
 ### How verification is enforced
