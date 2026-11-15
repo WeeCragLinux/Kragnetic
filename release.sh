@@ -130,7 +130,7 @@ load_cosign_password() {
     export COSIGN_PASSWORD
     return
   fi
-  [[ -f "$COSIGN_ENV" ]] || die "no COSIGN_PASSWORD and $COSIGN_ENV is missing"
+  sudo test -f "$COSIGN_ENV" || die "no COSIGN_PASSWORD and $COSIGN_ENV is missing"
   COSIGN_PASSWORD="$(sudo awk -F'=' '/^COSIGN_PASSWORD=/{sub(/^COSIGN_PASSWORD=/,""); print; exit}' "$COSIGN_ENV")"
   [[ -n "$COSIGN_PASSWORD" ]] || die "$COSIGN_ENV has no COSIGN_PASSWORD= line"
   export COSIGN_PASSWORD
@@ -150,7 +150,7 @@ preflight() {
 
   sudo -v
 
-  if [[ -f "$COSIGN_ENV" ]]; then
+  if sudo test -f "$COSIGN_ENV"; then
     local mode
     mode="$(sudo stat -c '%a' "$COSIGN_ENV" 2>/dev/null || echo unknown)"
     [[ "$mode" == "600" ]] \

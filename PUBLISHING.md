@@ -63,9 +63,10 @@ sudo chmod 600 /etc/kragnetic/release.env
 ```
 
 Alternatively export `COSIGN_PASSWORD` in the environment when invoking the
-script. The script preflights the toolchain, keypair, and root's GHCR login,
-and aborts before changing anything if a check fails. It warns if the env file
-is not mode 600.
+script. The script reads the env file with `sudo`, so `/etc/kragnetic` can stay
+mode `700` (root-only); the file itself must be `600`. The script preflights the
+toolchain, keypair, and root's GHCR login, and aborts before changing anything
+if a check fails. It warns if the env file is not mode 600.
 
 Useful overrides: `REPO`, `LOCAL_IMAGE`, `ROOT_AUTHFILE`, `COSIGN_KEY`,
 `COSIGN_PUB`, `COSIGN_ENV`, `KINETICWE_COPR`, and `RELEASE_CACHE=1` to reuse
