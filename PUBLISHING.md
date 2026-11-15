@@ -8,11 +8,10 @@ to GHCR, and signed with a local cosign key.
 | default (AMD / Intel) | `:default` | yes |
 | nvidia (NVIDIA open) | `:nvidia` | yes |
 | nvidia-legacy | `:nvidia-legacy` | no (dormant) |
-| deck | `:deck` | no (dormant) |
 
-Images live at `ghcr.io/weecraglinux/kragnetic`. The `deck` and
-`nvidia-legacy` kickstarts exist and point at that registry, but those tags are
-not built or published, so their ISOs will not install.
+Images live at `ghcr.io/weecraglinux/kragnetic`. The `nvidia-legacy`
+kickstart exists and points at that registry, but the tag is not built or
+published, so its ISO will not install.
 
 ## 1. One-time setup
 

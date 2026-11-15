@@ -8,14 +8,13 @@ A minimal Fedora-based bootc image featuring the KineticWE tiling Wayland compos
 - **Kernel**: Bazzite/OGC kernel with NVIDIA support
 - **Desktop**: KineticWE (from experimental COPR)
 - **Greeter**: Noctalia greeter via greetd
-- **Deck variant**: Steam Gaming Mode via SDDM + gamescope, KineticWE in Desktop Mode
 
 ## Base images and variants
 
 Kragnetic builds several variants. `profile.yaml` declares the default image
 plus a `base_images` map of named variants. Only **default** and **nvidia** are
 currently built and published to `ghcr.io/weecraglinux/kragnetic`; the
-`nvidia-legacy` and `deck` entries remain defined but are dormant.
+`nvidia-legacy` entry remains defined but is dormant.
 
 ```yaml
 base_image: ghcr.io/ublue-os/bazzite:stable              # default, AMD / Intel
@@ -23,7 +22,6 @@ base_image: ghcr.io/ublue-os/bazzite:stable              # default, AMD / Intel
 base_images:
   nvidia: ghcr.io/ublue-os/bazzite-nvidia-open:stable    # NVIDIA (open)
   nvidia-legacy: ghcr.io/ublue-os/bazzite-nvidia:stable # NVIDIA (proprietary)
-  deck: ghcr.io/ublue-os/bazzite-deck:stable             # Steam Deck / gaming
 ```
 
 Select a variant at build time with `--base-image <name>`. The variant name is
@@ -33,7 +31,6 @@ also the image tag, so `-t` is only needed to override it:
 dcli-bootc build                              # AMD / Intel        → :default
 dcli-bootc build --nvidia                     # NVIDIA open        → :nvidia
 dcli-bootc build --base-image nvidia-legacy   # NVIDIA proprietary → :nvidia-legacy
-dcli-bootc build --base-image deck            # Steam Deck         → :deck
 ```
 
 `--nvidia` is an alias for `--base-image nvidia`. Because the variant name is
@@ -51,7 +48,6 @@ matching registry tag:
 ./build-iso.sh                # :default
 ./build-iso.sh nvidia         # :nvidia
 ./build-iso.sh nvidia-legacy  # :nvidia-legacy (dormant)
-./build-iso.sh deck           # :deck (dormant)
 ```
 
 Build only the tags that are actually published. See `PUBLISHING.md` for the
@@ -71,24 +67,6 @@ NVIDIA build. `dcli-bootc update` behaves the same way.
 If this project only ever targets AMD, drop the `nvidia` (and other) entries
 from `base_images`. `--nvidia` then falls back to `base_image`, so no NVIDIA
 base can be pulled by accident.
-
-## Steam Deck variant (dormant)
-
-The `:deck` variant targets Bazzite's Steam Deck base (`bazzite-deck:stable`)
-and handhelds/HTPCs that should boot straight into Steam Gaming Mode. It is
-**not currently built or published**:
-
-```bash
-dcli-bootc build --base-image deck   # → localhost/kragnetic:deck
-./build-iso.sh deck                  # → output/kragnetic-deck-<date>.iso
-```
-
-It boots into Gaming Mode (SDDM autologin to the gamescope/Steam session),
-and switching to Desktop Mode launches **KineticWE** instead of KDE. Swap
-support for the other variants is wired through `base_images` in
-`profile.yaml`, so publishing them later is a matter of building and signing
-the tags. Their kickstarts already point at
-`ghcr.io/weecraglinux/kragnetic`.
 
 ## Building
 
