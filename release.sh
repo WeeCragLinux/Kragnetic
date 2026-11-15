@@ -171,7 +171,7 @@ preflight() {
 }
 
 release_variant() {
-  local v="$1" base tag cur kin fp prev local_digest reg_digest
+  local v="$1" base tag cur kin fp prev local_id reg_config reg_digest
 
   base="$(base_for "$v")"
   tag="$(tag_for "$v")"
@@ -206,10 +206,8 @@ release_variant() {
 
   sudo podman image exists "$LOCAL_IMAGE:$tag" \
     || die "$LOCAL_IMAGE:$tag is missing — build it first"
-  # Use skopeo on both sides: podman's .Digest can report a different
-  # manifest/index digest than the one the registry ends up serving.
-  local_digest="$(sudo skopeo inspect --format '{{.Digest}}' \
-    "containers-storage:$LOCAL_IMAGE:$tag")"
+  local_id="$(sudo podman image inspect "$LOCAL_IMAGE:$tag" --format '{{.Id}}')"
+  printf '   image id:    %s\n' "$local_id"
 
   info "$v: pushing $REPO:$tag"
   sudo skopeo copy --authfile "$ROOT_AUTHFILE" --all \
@@ -218,8 +216,26 @@ release_variant() {
 
   reg_digest="$(sudo skopeo inspect --authfile "$ROOT_AUTHFILE" --format '{{.Digest}}' \
     "docker://$REPO:$tag")"
-  [[ "$reg_digest" == "$local_digest" ]] \
-    || die "registry digest $reg_digest does not match local $local_digest"
+
+  # Compare image-config digests, not manifest digests: containers-storage
+  # layers are recompressed on push, so the manifest digest legitimately
+  # changes while the image config (and therefore the image ID) does not.
+  reg_config="$(sudo skopeo inspect --raw --authfile "$ROOT_AUTHFILE" \
+    "docker://$REPO:$tag" | jq -r '.config.digest // empty')"
+  if [[ -z "$reg_config" ]]; then
+    local child
+    child="$(sudo skopeo inspect --raw --authfile "$ROOT_AUTHFILE" \
+      "docker://$REPO:$tag" \
+      | jq -r '[.manifests[]? | select(.platform.os == "linux")][0].digest // empty')"
+    if [[ -n "$child" ]]; then
+      reg_config="$(sudo skopeo inspect --raw --authfile "$ROOT_AUTHFILE" \
+        "docker://$REPO@$child" | jq -r '.config.digest // empty')"
+    fi
+  fi
+  if [[ -n "$reg_config" && "$reg_config" != "$local_id" ]]; then
+    die "registry config $reg_config does not match local image id $local_id"
+  fi
+  [[ -n "$reg_config" ]] || printf '   warning: could not compare config digests\n' >&2
 
   info "$v: signing $REPO@$reg_digest"
   cosign sign --key "$COSIGN_KEY" --yes "$REPO@$reg_digest"
