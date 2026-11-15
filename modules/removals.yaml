@@ -90,7 +90,6 @@ remove:
   # would make dcli-bootc's package verification fail.
   - sddm-kcm
   # KDE Apps (not needed)
-  - ark
   - gwenview
   - elisa
   - okular
