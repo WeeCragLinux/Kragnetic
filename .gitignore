@@ -30,3 +30,4 @@ cosign.key
 
 # Local auth/state
 .auth/
+*.env

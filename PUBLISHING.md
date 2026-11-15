@@ -13,6 +13,51 @@ Images live at `ghcr.io/weecraglinux/kragnetic`. The `nvidia-legacy`
 kickstart exists and points at that registry, but the tag is not built or
 published, so its ISO will not install.
 
+## One-click release (`release.sh`)
+
+For the normal case — rebuild when Bazzite moves, push, sign, promote — use:
+
+```bash
+./release.sh            # both variants; skips any whose base is unchanged
+./release.sh nvidia     # just one variant
+./release.sh --force    # rebuild even when the base digest is unchanged
+./release.sh --no-build # publish the local images as they are
+```
+
+Per variant it runs:
+
+1. compare the upstream base digest (`bazzite:stable` /
+   `bazzite-nvidia-open:stable`) with `~/.local/state/kragnetic/release/<variant>.base-digest`
+2. `dcli-bootc update --no-switch --no-import`
+3. push the image to a dated tag, e.g. `:2026-11-15`
+4. `cosign sign` **by digest**
+5. `cosign verify` the dated tag
+6. copy the same digest to the mutable tag (`:default` / `:nvidia`)
+7. `cosign verify` the mutable tag
+
+Because signatures bind to the digest, the mutable tag only ever points at an
+image that is already signed: a failure before promotion leaves users on the
+previous good image. `--force` is the only way to republish an unchanged base.
+
+### Key password for unattended runs
+
+`release.sh` reads the cosign key password from a root-only env file:
+
+```bash
+sudo install -d -m 700 /etc/kragnetic
+printf 'COSIGN_PASSWORD=%s\n' '<your-cosign-key-password>' \
+  | sudo tee /etc/kragnetic/release.env >/dev/null
+sudo chmod 600 /etc/kragnetic/release.env
+```
+
+Alternatively export `COSIGN_PASSWORD` in the environment when invoking the
+script. The script preflights the toolchain, keypair, and root's GHCR login,
+and aborts before changing anything if a check fails.
+
+Useful overrides: `REPO`, `LOCAL_IMAGE`, `ROOT_AUTHFILE`, `COSIGN_KEY`,
+`COSIGN_PUB`, `COSIGN_ENV`, `DATED_TAG`, and `RELEASE_CACHE=1` to reuse the
+podman layer cache.
+
 ## 1. One-time setup
 
 ### Build tools
