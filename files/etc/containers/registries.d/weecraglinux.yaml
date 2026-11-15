@@ -1,0 +1,3 @@
+docker:
+  ghcr.io/weecraglinux:
+    use-sigstore-attachments: true

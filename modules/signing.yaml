@@ -1,0 +1,26 @@
+description: Require cosign signatures for ghcr.io/weecraglinux images
+scripts:
+  post: |
+    # Images pushed to ghcr.io/weecraglinux are signed with the project's
+    # cosign key. This module makes bootc verify them: pulling an unsigned or
+    # tampered image from that namespace fails.
+    #
+    # The public key and the registries.d attachment are shipped in the
+    # project files/ tree (installed by the overlay module). Only the policy
+    # entry is added here.
+    #
+    # Merge instead of replacing policy.json: Bazzite already pins sigstore
+    # policy for ghcr.io/ublue-os, and base updates may add more entries.
+    if [ -f /etc/containers/policy.json ]; then
+      tmp="$(mktemp)"
+      jq --arg repo "ghcr.io/weecraglinux" \
+         --arg key "/etc/pki/containers/weecraglinux.pub" \
+         '.transports.docker //= {}
+          | .transports.docker[$repo] = [{
+              "type": "sigstoreSigned",
+              "keyPath": $key,
+              "signedIdentity": {"type": "matchRepository"}
+            }]' /etc/containers/policy.json > "$tmp"
+      install -m 0644 "$tmp" /etc/containers/policy.json
+      rm -f "$tmp"
+    fi

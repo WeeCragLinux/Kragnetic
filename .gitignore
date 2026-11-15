@@ -1,0 +1,16 @@
+# Build output
+output/
+*.iso
+
+# Editor swap files
+*.swp
+*.swo
+*.kate-swp
+*~
+
+# Signing material — never commit private keys
+cosign.key
+*.key
+
+# Local auth/state
+.auth/

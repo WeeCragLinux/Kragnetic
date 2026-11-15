@@ -1,0 +1,9 @@
+description: Terra repo (Fyra Labs) — Bazzite ships Terra disabled; enable it
+scripts:
+  post: |
+    # Bazzite/Fedora 45 moved the terra-release repo files to
+    # /usr/share/dnf5/repos.d/ and disables them through dnf5's override file
+    # (/etc/dnf/repos.override.d/99-config_manager.repo). dcli's `repos.enable`
+    # still sed-edits /etc/yum.repos.d/<id>.repo, which no longer exists (and
+    # would lose to the enabled=0 override anyway), so enable via dnf5 itself.
+    dnf5 config-manager enable --create-missing-dir terra terra-extras

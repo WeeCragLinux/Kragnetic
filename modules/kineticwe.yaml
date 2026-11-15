@@ -1,0 +1,11 @@
+description: KineticWE compositor + Noctalia greeter
+repos:
+  copr:
+    - theblackdon/kwee
+packages:
+  - kineticwe
+  - kineticwe-greeter
+  # KWE Related Packages
+  - spectacle
+  - dolphin
+  - konsole

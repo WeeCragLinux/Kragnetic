@@ -1,0 +1,57 @@
+name: kragnetic
+base_image: ghcr.io/ublue-os/bazzite:stable
+default_tag: default
+package_manager: dnf
+
+# Named base-image variants, selected at build time with `--base-image <name>`.
+# The variant name is also the default image tag (`--base-image deck` builds
+# `:deck`). `base_image` above stays the default AMD/Intel image.
+base_images:
+  nvidia: ghcr.io/ublue-os/bazzite-nvidia-open:stable
+  nvidia-legacy: ghcr.io/ublue-os/bazzite-nvidia:stable
+  deck: ghcr.io/ublue-os/bazzite-deck:stable
+
+# Bake this project's source into the image at /usr/share/kineticos/project so a
+# running system can reproduce or fork the recipe offline via `dcli-bootc init`.
+include_project: true
+
+enabled_modules:
+  - removals
+  - base
+  - kineticwe
+  - session
+  - greeter
+  - system
+  # Rebrands os-release so the installer/ISO identify as Kragnetic instead of
+  # Bazzite. Runs before overlay so the overlay files/ tree can't clobber it.
+  - branding
+  # Cosign signing policy for ghcr.io/weecraglinux: ships the public key and
+  # requires a valid signature for images from that namespace.
+  - signing
+  # Terra repo (Fyra Labs). Disabled by default; uncomment to enable. Kept after
+  # the modules whose packages already resolve against the base image, so
+  # enabling Terra can't shadow them.
+  - terra
+  # Persistent /usr overlay + kinpkg (RakuOS-style); must run last, after the
+  # files/ tree is copied into the image (installs the dnf shim over Atomic's).
+  - overlay
+  # Plymouth is disabled via the `plymouth.enable=0` karg baked in
+  # files/usr/lib/bootc/kargs.d/ -- no initramfs rebuild, no Bazzite
+  # watermark. Re-enabling a graphical splash would need dracut (see git
+  # history for the old watermark-swap module).
+
+# usr-overlay manifest: packages installed live into the persistent /usr
+# overlay. NOT in enabled_modules (its packages belong in the overlay, not the
+# image). The `overlay` module above is the infra (mount unit + kinpkg) and
+# stays enabled. `build`/`update` snapshot live overlay installs here
+# automatically, so a plain `dnf`/`kinpkg` install is recorded with no manual
+# `dcli-bootc overlay import` step.
+overlay_module: overlay-packages
+overlay_backend: kinpkg
+
+services:
+  - account-service-manager
+
+flatpak_remotes:
+  - name: flathub
+    url: https://dl.flathub.org/repo/flathub.flatpakrepo
