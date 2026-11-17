@@ -13,8 +13,7 @@ remote_rpms: []
 local_rpms: []
 appimages: []
 flatpak_remotes: []
-flatpaks:
-- io.github.benjamimgois.goverlay
+flatpaks: []
 remove_flatpaks: []
 user_flatpak_remotes: []
 user_flatpaks: []

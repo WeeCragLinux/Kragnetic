@@ -112,6 +112,7 @@ remove:
   - krdc
   - kfind
   - kwrite
+  - terra-mangohud
   # KDE Settings Modules
   - kcmshell
   - plasma-systemsettings
