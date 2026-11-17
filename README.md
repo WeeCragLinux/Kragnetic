@@ -16,12 +16,17 @@ newer). On an existing bootc system (Bazzite, Fedora Atomic, Silverblue, …):
 curl -fsSLO https://raw.githubusercontent.com/WeeCragLinux/Kragnetic/main/files/etc/pki/containers/weecraglinux.pub
 
 # 2. Prove the image is signed by that key
-cosign verify --key weecraglinux.pub ghcr.io/weecraglinux/kragnetic:default
+cosign verify --key weecraglinux.pub --insecure-ignore-tlog ghcr.io/weecraglinux/kragnetic:default
 
 # 3. Switch and reboot
 sudo bootc switch ghcr.io/weecraglinux/kragnetic:default
 sudo systemctl reboot
 ```
+
+`--insecure-ignore-tlog` is needed on cosign v3: the signature is attached
+offline in the legacy `.sig` format bootc reads, so it has no Rekor
+transparency-log entry. It is still verified against the public key. bootc's
+own policy check does not use the transparency log.
 
 After rebooting:
 

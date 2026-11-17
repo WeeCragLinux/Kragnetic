@@ -253,11 +253,13 @@ release_variant() {
 
   info "$v: signing $REPO@$reg_digest"
   local sign_args=(sign --key "$COSIGN_KEY" --yes)
+  local legacy_sig=0
   if cosign_needs_legacy_flags; then
     # cosign v3 defaults to the Sigstore bundle format attached via OCI
     # referrers. containers/image (bootc, podman, skopeo) only reads the legacy
     # sha256-<digest>.sig tag, so force the old format.
     sign_args+=(--tlog-upload=false --new-bundle-format=false --use-signing-config=false)
+    legacy_sig=1
   fi
   cosign "${sign_args[@]}" "$REPO@$reg_digest"
 
@@ -269,7 +271,15 @@ release_variant() {
     || die "legacy signature tag $sig_tag is missing after signing"
 
   info "$v: verifying $REPO:$tag"
-  cosign verify --key "$COSIGN_PUB" "$REPO:$tag" >/dev/null
+  local verify_args=(verify --key "$COSIGN_PUB")
+  if ((legacy_sig)); then
+    # The signature was made offline, so it has no Rekor entry, and cosign v3
+    # verify requires one by default. bootc/containers-image never consult the
+    # transparency log; the .sig tag check above is what proves the attachment
+    # they read exists.
+    verify_args+=(--insecure-ignore-tlog)
+  fi
+  cosign "${verify_args[@]}" "$REPO:$tag" >/dev/null
 
   fingerprint_for "$base" > "$(state_file "$v")"
   printf '   released %s:%s at %s\n' "$REPO" "$tag" "$reg_digest"

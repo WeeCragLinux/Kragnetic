@@ -158,9 +158,17 @@ cosign sign --key ~/cosign/cosign.key --yes \
   --tlog-upload=false --new-bundle-format=false --use-signing-config=false \
   ghcr.io/weecraglinux/kragnetic:nvidia
 
-cosign verify --key ~/cosign/cosign.pub ghcr.io/weecraglinux/kragnetic:default
-cosign verify --key ~/cosign/cosign.pub ghcr.io/weecraglinux/kragnetic:nvidia
+cosign verify --key ~/cosign/cosign.pub --insecure-ignore-tlog \
+  ghcr.io/weecraglinux/kragnetic:default
+cosign verify --key ~/cosign/cosign.pub --insecure-ignore-tlog \
+  ghcr.io/weecraglinux/kragnetic:nvidia
 ```
+
+Signatures are created **offline** (no Rekor entry) so that containers/image —
+and therefore bootc, podman and skopeo — can read the legacy `.sig` tag. cosign
+v3's `verify` requires a transparency-log entry by default, hence
+`--insecure-ignore-tlog`; it still checks the signature against the public key.
+bootc's own verification (policy + `.sig`) does not use the transparency log.
 
 Confirm the legacy attachment exists — bootc cannot verify without it:
 
